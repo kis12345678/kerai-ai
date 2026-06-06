@@ -6,7 +6,7 @@ import Settings from './components/Settings'
 function Titlebar({ onSettings }: { onSettings: () => void }): JSX.Element {
   return (
     <div className="titlebar">
-      <div className="brand">◈ I R I S</div>
+      <div className="brand">◈ K E R A I</div>
       <div className="win-btns">
         <button onClick={onSettings} title="Settings">⚙</button>
         <button onClick={() => window.kerai.window.minimize()}>—</button>
@@ -63,7 +63,7 @@ export default function App(): JSX.Element {
           ) : showSettings ? (
             <Settings onBack={() => { setShowSettings(false); refresh() }} />
           ) : hasKey ? (
-            <Console onReset={refresh} />
+            <Console onReset={refresh} onShowSettings={() => setShowSettings(true)} />
           ) : (
             <Setup onDone={refresh} />
           )}
