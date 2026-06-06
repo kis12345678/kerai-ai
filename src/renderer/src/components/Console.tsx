@@ -189,7 +189,7 @@ function speak(text: string, voiceName?: string): void {
   }
 }
 
-export default function Console({ onReset }: { onReset: () => void }): JSX.Element {
+export default function Console({ onReset, onShowSettings }: { onReset: () => void; onShowSettings: () => void }): JSX.Element {
   const [messages, setMessages] = useState<Msg[]>([])
   const [currentTime, setCurrentTime] = useState('')
   const [input, setInput] = useState('')
@@ -610,7 +610,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
         </div>
         <div className="header-actions">
           <button className="header-btn" onClick={() => setShowAudit(!showAudit)} title="Audit Logs">📁 LOGS</button>
-          <button className="header-btn" onClick={onReset} title="Settings">⚙️ SETTINGS</button>
+          <button className="header-btn" onClick={onShowSettings} title="Settings">⚙️ SETTINGS</button>
         </div>
       </div>
 
