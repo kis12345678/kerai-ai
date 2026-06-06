@@ -1,0 +1,44 @@
+import { useState } from 'react'
+
+export default function Setup({ onDone }: { onDone: () => void }): JSX.Element {
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const save = async (): Promise<void> => {
+    if (!key.trim()) return
+    setBusy(true)
+    setErr('')
+    const res = await window.iris.settings.save({ apiKey: key.trim() })
+    setBusy(false)
+    if (res.success) onDone()
+    else setErr(res.error || 'Could not save key.')
+  }
+
+  return (
+    <div className="setup">
+      <div className="setup-card">
+        <div className="big">IRIS</div>
+        <p>
+          Paste a free Groq API key to bring IRIS online. The key is encrypted by your OS and
+          stays on this machine — it is never exposed to the interface.
+        </p>
+        {err && <div className="err">{err}</div>}
+        <label>GROQ API KEY</label>
+        <input
+          type="password"
+          value={key}
+          placeholder="gsk_..."
+          onChange={(e) => setKey(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+        />
+        <button onClick={save} disabled={busy || !key.trim()}>
+          {busy ? 'LINKING…' : 'INITIALISE'}
+        </button>
+        <p style={{ marginTop: 18, marginBottom: 0 }}>
+          Get one free at <a>console.groq.com/keys</a>
+        </p>
+      </div>
+    </div>
+  )
+}
