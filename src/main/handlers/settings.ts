@@ -44,9 +44,11 @@ export function getModel(): string {
   return readRaw().model || 'llama-3.3-70b-versatile'
 }
 
-export function getProvider(): 'groq' | 'ollama' {
+export function getProvider(): 'groq' | 'gemini' | 'ollama' {
   const p = readRaw().provider
-  return p === 'ollama' ? 'ollama' : 'groq'
+  if (p === 'ollama') return 'ollama'
+  if (p === 'gemini') return 'gemini'
+  return 'groq'
 }
 
 export function getOllamaModel(): string {

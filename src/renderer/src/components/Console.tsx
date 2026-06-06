@@ -75,9 +75,30 @@ function speakOffline(text: string, voiceName?: string): void {
     const u = new SpeechSynthesisUtterance(text)
     u.rate = 1.05
     u.pitch = 1
-    if (voiceName && voiceName !== 'google-natural') {
-      const voice = window.speechSynthesis.getVoices().find((v) => v.name === voiceName)
-      if (voice) u.voice = voice
+    if (voiceName) {
+      if (voiceName === 'browser-female') {
+        const voice = window.speechSynthesis.getVoices().find(
+          (v) =>
+            v.name.toLowerCase().includes('female') ||
+            v.name.toLowerCase().includes('zira') ||
+            v.name.toLowerCase().includes('aria') ||
+            v.name.toLowerCase().includes('susan') ||
+            v.name.toLowerCase().includes('hazel')
+        )
+        if (voice) u.voice = voice
+      } else if (voiceName === 'browser-male') {
+        const voice = window.speechSynthesis.getVoices().find(
+          (v) =>
+            v.name.toLowerCase().includes('male') ||
+            v.name.toLowerCase().includes('david') ||
+            v.name.toLowerCase().includes('guy') ||
+            v.name.toLowerCase().includes('george')
+        )
+        if (voice) u.voice = voice
+      } else if (voiceName !== 'google-natural-female' && voiceName !== 'google-natural-male') {
+        const voice = window.speechSynthesis.getVoices().find((v) => v.name === voiceName)
+        if (voice) u.voice = voice
+      }
     }
     window.speechSynthesis.speak(u)
   } catch {
@@ -85,7 +106,7 @@ function speakOffline(text: string, voiceName?: string): void {
   }
 }
 
-async function speakGoogleNatural(text: string): Promise<void> {
+async function speakGoogleNatural(text: string, voiceName?: string): Promise<void> {
   const cleanText = text.replace(/[*#`_\n]/g, ' ').trim()
   const words = cleanText.split(' ')
   const chunks: string[] = []
@@ -101,17 +122,24 @@ async function speakGoogleNatural(text: string): Promise<void> {
   }
   if (currentChunk) chunks.push(currentChunk.trim())
 
+  const isMale = voiceName === 'google-natural-male'
+  const tl = isMale ? 'en-GB' : 'en-US'
+
   for (const chunk of chunks) {
     if (!chunk) continue
     await new Promise<void>((resolve, reject) => {
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-US&client=tw-ob&q=${encodeURIComponent(chunk)}`
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${tl}&client=tw-ob&q=${encodeURIComponent(chunk)}`
       const audio = new Audio(url)
       activeAudio = audio
       audio.onended = () => resolve()
-      audio.onerror = () => reject()
-      audio.play().catch(reject)
-    }).catch(() => {
-      speakOffline(chunk)
+      audio.onerror = () => {
+        speakOffline(chunk, voiceName)
+        resolve()
+      }
+      audio.play().catch(() => {
+        speakOffline(chunk, voiceName)
+        resolve()
+      })
     })
   }
 }
@@ -120,8 +148,8 @@ function speak(text: string, voiceName?: string): void {
   try {
     cancelSpeech()
 
-    if (voiceName === 'google-natural') {
-      void speakGoogleNatural(text)
+    if (voiceName === 'google-natural-female' || voiceName === 'google-natural-male') {
+      void speakGoogleNatural(text, voiceName)
     } else {
       speakOffline(text, voiceName)
     }
@@ -172,7 +200,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
 
   useEffect(() => {
     window.kerai.settings.status().then((s) => {
-      setVoiceName(s.voice || '')
+      setVoiceName(s.voice || 'google-natural-female')
     })
     window.kerai.system.getInfo().then(setInfo)
     const t = setInterval(() => window.kerai.system.getInfo().then(setInfo), 5000)
