@@ -12,11 +12,11 @@ const OLLAMA_URL = 'http://localhost:11434/api/chat'
 type Msg = { role: 'system' | 'user' | 'assistant'; content: string }
 
 const SYSTEM_PROMPT =
-  'You are IRIS, a concise, capable voice assistant running on the user\'s desktop. ' +
+  'You are KERAI, a concise, capable voice assistant running on the user\'s desktop. ' +
   'Keep replies short and natural — they may be read aloud. Be direct and helpful.'
 
 const AGENT_SYSTEM_PROMPT =
-  'You are IRIS, a capable desktop AI assistant. Use tools whenever they would directly ' +
+  'You are KERAI, a capable desktop AI assistant. Use tools whenever they would directly ' +
   'fulfill the user\'s request — open apps, open URLs, read or search files, adjust volume. ' +
   'After a tool runs, give a short confirmation or answer based on its result. ' +
   'For pure conversation, reply briefly and naturally as if spoken aloud.'

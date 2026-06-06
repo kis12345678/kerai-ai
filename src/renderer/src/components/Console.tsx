@@ -171,16 +171,16 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
   }, [])
 
   useEffect(() => {
-    window.iris.settings.status().then((s) => {
+    window.kerai.settings.status().then((s) => {
       setVoiceName(s.voice || '')
     })
-    window.iris.system.getInfo().then(setInfo)
-    const t = setInterval(() => window.iris.system.getInfo().then(setInfo), 5000)
+    window.kerai.system.getInfo().then(setInfo)
+    const t = setInterval(() => window.kerai.system.getInfo().then(setInfo), 5000)
     return () => clearInterval(t)
   }, [])
 
   useEffect(() => {
-    const unsub = window.iris.onSpeakRequest((text) => {
+    const unsub = window.kerai.onSpeakRequest((text) => {
       speak(text, voiceName)
       setMessages((prev) => [...prev, { role: 'assistant', content: `[Reminder] ${text}` }])
     })
@@ -189,7 +189,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
 
   // Load persisted conversation on mount.
   useEffect(() => {
-    window.iris.history.load().then((res) => {
+    window.kerai.history.load().then((res) => {
       if (res.success && res.messages && res.messages.length > 0) {
         setMessages(res.messages)
       }
@@ -200,20 +200,20 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
   useEffect(() => {
     if (isStreaming || thinking) return
     if (messages.length === 0) return
-    void window.iris.history.save(messages)
+    void window.kerai.history.save(messages)
   }, [messages, isStreaming, thinking])
 
   useEffect(() => {
-    window.iris.automation.status().then((s) => setAutomationEnabled(s.enabled))
+    window.kerai.automation.status().then((s) => setAutomationEnabled(s.enabled))
   }, [])
 
   useEffect(() => {
-    window.iris.overlay.status().then((s) => setIsOverlay(s.overlay))
-    return window.iris.overlay.onChange((d) => setIsOverlay(d.overlay))
+    window.kerai.overlay.status().then((s) => setIsOverlay(s.overlay))
+    return window.kerai.overlay.onChange((d) => setIsOverlay(d.overlay))
   }, [])
 
   useEffect(() => {
-    window.iris.rag.list().then((docs) => setRagDocs(docs as RagDoc[]))
+    window.kerai.rag.list().then((docs) => setRagDocs(docs as RagDoc[]))
   }, [])
 
   useEffect(() => {
@@ -254,7 +254,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
       setAgentBusy(false)
     }
 
-    unsubChunk = window.iris.ai.onStreamChunk((token) => {
+    unsubChunk = window.kerai.ai.onStreamChunk((token) => {
       setThinking(false)
       setIsStreaming(true)
       setMessages((prev) => {
@@ -266,7 +266,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
       })
     })
 
-    unsubEnd = window.iris.ai.onStreamEnd((reply) => {
+    unsubEnd = window.kerai.ai.onStreamEnd((reply) => {
       cleanup()
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.streaming)
@@ -278,7 +278,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
       speak(reply, voiceName)
     })
 
-    unsubError = window.iris.ai.onStreamError((error) => {
+    unsubError = window.kerai.ai.onStreamError((error) => {
       cleanup()
       setMessages((prev) => [
         ...prev.filter((m) => !m.streaming),
@@ -286,7 +286,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
       ])
     })
 
-    unsubToolCall = window.iris.ai.onToolCall((data) => {
+    unsubToolCall = window.kerai.ai.onToolCall((data) => {
       setThinking(false)
       setMessages((prev) => [
         ...prev,
@@ -294,7 +294,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
       ])
     })
 
-    unsubToolResult = window.iris.ai.onToolResult((data) => {
+    unsubToolResult = window.kerai.ai.onToolResult((data) => {
       setMessages((prev) =>
         prev.map((m) =>
           m.toolId === data.id
@@ -310,7 +310,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
       )
     })
 
-    void window.iris.ai.agentChat(history)
+    void window.kerai.ai.agentChat(history)
   }
 
   const startRecording = async (): Promise<void> => {
@@ -325,7 +325,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
         const buf = await blob.arrayBuffer()
         setThinking(true)
-        const res = await window.iris.ai.transcribe(buf)
+        const res = await window.kerai.ai.transcribe(buf)
         setThinking(false)
         if (res.success && res.text) send(res.text)
       }
@@ -346,44 +346,44 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
   }
 
   const loadAudit = async (): Promise<void> => {
-    const res = await window.iris.audit.readLog()
+    const res = await window.kerai.audit.readLog()
     if (res.success) setAuditEntries([...res.entries].reverse())
   }
 
   const handleScreenshot = async (): Promise<void> => {
     setScreenshotting(true)
-    const res = await window.iris.system.screenshot()
+    const res = await window.kerai.system.screenshot()
     setScreenshotting(false)
     if (res.success && res.path) setScreenshotPath(res.path)
   }
 
   const handleClipboard = async (): Promise<void> => {
-    const res = await window.iris.system.clipboardRead()
+    const res = await window.kerai.system.clipboardRead()
     if (res.success) setClipText(res.text ?? '')
   }
 
   const handleOCR = async (): Promise<void> => {
     setOcrBusy(true)
-    const res = await window.iris.system.ocr()
+    const res = await window.kerai.system.ocr()
     setOcrBusy(false)
     if (res.success) setOcrText(res.text ?? '')
   }
 
   const handleAutomationToggle = async (): Promise<void> => {
     const next = !automationEnabled
-    const res = await window.iris.automation.toggle(next)
+    const res = await window.kerai.automation.toggle(next)
     setAutomationEnabled(res.enabled)
   }
 
   const handleRagAdd = async (): Promise<void> => {
     setRagBusy(true)
-    const res = await window.iris.rag.add()
+    const res = await window.kerai.rag.add()
     setRagBusy(false)
     if (res.success) setRagDocs((res.docs ?? []) as RagDoc[])
   }
 
   const handleRagRemove = async (id: string): Promise<void> => {
-    await window.iris.rag.remove(id)
+    await window.kerai.rag.remove(id)
     setRagDocs((prev) => prev.filter((d) => d.id !== id))
   }
 
@@ -391,7 +391,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
   const startRecordingRef = useRef<(() => Promise<void>) | null>(null)
   startRecordingRef.current = startRecording
 
-  // Wake word — continuous SpeechRecognition looking for "iris" / "hey iris".
+  // Wake word — continuous SpeechRecognition looking for "kerai" / "hey kerai".
   // Restarts automatically when it ends naturally (browser stops after silence).
   useEffect(() => {
     if (!wakeWordActive) {
@@ -417,7 +417,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
     r.onresult = (e: SpeechRecogEvent) => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript.toLowerCase()
-        if (/\b(hey\s+)?iris\b/.test(t)) {
+        if (/\b(hey\s+)?kerai\b/.test(t)) {
           r.stop()
           active = false
           setWakeWordActive(false)
@@ -547,7 +547,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
       <div className="ambient-header">
         <div className="brand">
           <span className="glow-dot"></span>
-          <h2>IRIS.AI</h2>
+          <h2>KERAI.AI</h2>
         </div>
         <div className="header-actions">
           <button className="header-btn" onClick={() => setShowAudit(!showAudit)} title="Audit Logs">📁 LOGS</button>
@@ -621,13 +621,13 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
         <div className="ambient-chat-scroller">
           {messages.map((m, i) => (
             <div key={i} className={`ambient-msg-row ${m.role}`}>
-              <span className="role-lbl">{m.role === 'user' ? 'You' : 'Iris'}</span>
+              <span className="role-lbl">{m.role === 'user' ? 'You' : 'Kerai'}</span>
               <div className="msg-bubble">{m.content}</div>
             </div>
           ))}
           {thinking && !isStreaming && (
             <div className="ambient-msg-row assistant typing">
-              <span className="role-lbl">Iris</span>
+              <span className="role-lbl">Kerai</span>
               <div className="msg-bubble">● ● ●</div>
             </div>
           )}
@@ -641,7 +641,7 @@ export default function Console({ onReset }: { onReset: () => void }): JSX.Eleme
           <button className="shortcut-btn" onClick={() => send("Get system health status")}>⚡ System</button>
           <button className="shortcut-btn" onClick={() => send("Check the weather in Paris")}>🌦️ Weather</button>
           <button className="shortcut-btn" onClick={() => send("Search Wikipedia for Artificial Intelligence")}>📖 Wiki AI</button>
-          <button className="shortcut-btn" onClick={() => { cancelSpeech(); setMessages([]); void window.iris.history.clear(); }} title="Clear Chat">↺ Clear</button>
+          <button className="shortcut-btn" onClick={() => { cancelSpeech(); setMessages([]); void window.kerai.history.clear(); }} title="Clear Chat">↺ Clear</button>
         </div>
 
         <div className="dock-actions-row">

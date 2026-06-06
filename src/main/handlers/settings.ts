@@ -3,7 +3,7 @@ import { log } from '../logger'
 import { join } from 'path'
 import fs from 'fs'
 
-const configPath = join(app.getPath('userData'), 'iris_config.json')
+const configPath = join(app.getPath('userData'), 'kerai_config.json')
 
 type Config = { apiKey?: string; model?: string; provider?: string; ollamaModel?: string; voice?: string }
 

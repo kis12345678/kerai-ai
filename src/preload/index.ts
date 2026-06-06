@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 type Msg = { role: 'system' | 'user' | 'assistant'; content: string }
 
 // FIXED allowlist. The renderer can call ONLY these — nothing else exists.
-const iris = {
+const kerai = {
   settings: {
     status: () => ipcRenderer.invoke('settings:status'),
     save: (cfg: { apiKey?: string; model?: string }) => ipcRenderer.invoke('settings:save', cfg),
@@ -114,10 +114,10 @@ const iris = {
 }
 
 if (process.contextIsolated) {
-  contextBridge.exposeInMainWorld('iris', iris)
+  contextBridge.exposeInMainWorld('kerai', kerai)
 } else {
   // @ts-ignore dev fallback only
-  window.iris = iris
+  window.kerai = kerai
 }
 
-export type IrisApi = typeof iris
+export type KeraiApi = typeof kerai

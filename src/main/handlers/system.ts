@@ -82,7 +82,7 @@ export default function registerSystem(): void {
 
       const png = src.thumbnail.toPNG()
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const fpath = path.join(app.getPath('pictures'), `iris-${stamp}.png`)
+      const fpath = path.join(app.getPath('pictures'), `kerai-${stamp}.png`)
       await fs.writeFile(fpath, png)
       return { success: true, path: fpath }
     } catch (err: unknown) {

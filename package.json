@@ -1,5 +1,5 @@
 {
-  "name": "iris",
+  "name": "kerai",
   "version": "0.1.0",
   "description": "A secure, voice-first desktop AI assistant. Rename freely.",
   "main": "./out/main/index.js",
