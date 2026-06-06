@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 type Voice = { name: string; lang: string }
 
 export default function Settings({ onBack }: { onBack: () => void }): JSX.Element {
-  const [provider, setProvider] = useState<'groq' | 'ollama'>('groq')
+  const [provider, setProvider] = useState<'groq' | 'gemini' | 'ollama'>('groq')
   const [model, setModel] = useState('')
   const [ollamaModel, setOllamaModel] = useState('')
   const [apiKey, setApiKey] = useState('')
@@ -19,7 +19,7 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
       setModel(s.model ?? 'llama-3.3-70b-versatile')
       setOllamaModel(s.ollamaModel ?? 'llama3.1:8b')
       setHasKey(s.hasKey)
-      setSelectedVoice(s.voice ?? 'google-natural')
+      setSelectedVoice(s.voice ?? 'google-natural-female')
     })
   }, [])
 
@@ -72,9 +72,19 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
                 name="provider"
                 value="groq"
                 checked={provider === 'groq'}
-                onChange={() => setProvider('groq')}
+                onChange={() => { setProvider('groq'); setModel('llama-3.3-70b-versatile'); }}
               />
               GROQ (cloud)
+            </label>
+            <label className={`settings-radio ${provider === 'gemini' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="provider"
+                value="gemini"
+                checked={provider === 'gemini'}
+                onChange={() => { setProvider('gemini'); setModel('gemini-2.0-flash'); }}
+              />
+              GEMINI (Google Cloud)
             </label>
             <label className={`settings-radio ${provider === 'ollama' ? 'active' : ''}`}>
               <input
@@ -105,6 +115,21 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
           </div>
         )}
 
+        {provider === 'gemini' && (
+          <div className="settings-section">
+            <label className="settings-label">GEMINI MODEL</label>
+            <select
+              className="settings-select"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+            >
+              <option value="gemini-2.0-flash">gemini-2.0-flash (Best Power & Speed)</option>
+              <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+              <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+            </select>
+          </div>
+        )}
+
         {provider === 'ollama' && (
           <div className="settings-section">
             <label className="settings-label">OLLAMA MODEL</label>
@@ -121,16 +146,17 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
         )}
 
         <div className="settings-section">
-          <label className="settings-label">GROQ API KEY</label>
+          <label className="settings-label">{provider === 'gemini' ? 'GEMINI API KEY' : 'GROQ API KEY'}</label>
           <div className="settings-hint" style={{ marginBottom: 6 }}>
             {hasKey ? '● Key stored (encrypted)' : '○ No key set'}
             {provider === 'ollama' && ' — optional for chat, required for voice'}
+            {provider === 'gemini' && ' — get your key at Google AI Studio'}
           </div>
           <input
             className="settings-input"
             type="password"
             value={apiKey}
-            placeholder={hasKey ? '••••••••' : 'gsk_...'}
+            placeholder={hasKey ? '••••••••' : provider === 'gemini' ? 'AIzaSy...' : 'gsk_...'}
             onChange={(e) => setApiKey(e.target.value)}
           />
           {hasKey && (
@@ -148,7 +174,10 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
               value={selectedVoice}
               onChange={(e) => setSelectedVoice(e.target.value)}
             >
-              <option value="google-natural">★ Google Natural (Realistic Voice)</option>
+              <option value="google-natural-female">★ Google Natural Female</option>
+              <option value="google-natural-male">★ Google Natural Male</option>
+              <option value="browser-female">Browser Native Female</option>
+              <option value="browser-male">Browser Native Male</option>
               <option value="">System default</option>
               {voices.map((v) => (
                 <option key={v.name} value={v.name}>
