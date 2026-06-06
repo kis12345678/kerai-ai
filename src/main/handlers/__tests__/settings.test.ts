@@ -74,7 +74,9 @@ describe('settings handler', () => {
       model: 'llama-3.3-70b-versatile',
       provider: 'groq',
       ollamaModel: 'llama3.1:8b',
-      voice: ''
+      voice: '',
+      hasElevenKey: false,
+      elevenVoiceId: '21m00Tcm4TlvDq8ikWAM'
     })
   })
 
@@ -100,7 +102,9 @@ describe('settings handler', () => {
       model: 'gemma2-9b-it',
       provider: 'ollama',
       ollamaModel: 'mistral:7b',
-      voice: ''
+      voice: '',
+      hasElevenKey: false,
+      elevenVoiceId: '21m00Tcm4TlvDq8ikWAM'
     })
   })
 

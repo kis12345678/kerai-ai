@@ -144,12 +144,43 @@ async function speakGoogleNatural(text: string, voiceName?: string): Promise<voi
   }
 }
 
+async function speakElevenLabs(text: string, voiceName: string): Promise<void> {
+  let voiceId = ''
+  if (voiceName === 'eleven-female') voiceId = '21m00Tcm4TlvDq8ikWAM'
+  else if (voiceName === 'eleven-male') voiceId = 'pNInz6obpgq5paNs9tEd'
+  
+  try {
+    const res = await (window.kerai.ai as any).speakElevenLabs(text, voiceId || undefined)
+    if (res.success && res.audioBase64) {
+      const audio = new Audio(`data:audio/mp3;base64,${res.audioBase64}`)
+      activeAudio = audio
+      await new Promise<void>((resolve) => {
+        audio.onended = () => resolve()
+        audio.onerror = () => {
+          speakOffline(text, voiceName)
+          resolve()
+        }
+        audio.play().catch(() => {
+          speakOffline(text, voiceName)
+          resolve()
+        })
+      })
+    } else {
+      speakOffline(text, voiceName)
+    }
+  } catch {
+    speakOffline(text, voiceName)
+  }
+}
+
 function speak(text: string, voiceName?: string): void {
   try {
     cancelSpeech()
 
     if (voiceName === 'google-natural-female' || voiceName === 'google-natural-male') {
       void speakGoogleNatural(text, voiceName)
+    } else if (voiceName && voiceName.startsWith('eleven-')) {
+      void speakElevenLabs(text, voiceName)
     } else {
       speakOffline(text, voiceName)
     }

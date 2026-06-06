@@ -1,6 +1,6 @@
 import { ipcMain, dialog } from 'electron'
 import { log } from '../logger'
-import { getApiKey, getModel, getProvider, getOllamaModel } from './settings'
+import { getApiKey, getModel, getProvider, getOllamaModel, getElevenLabsApiKey, getElevenLabsVoiceId } from './settings'
 import { executeTool, describeAction, TOOL_SCHEMAS } from './tools'
 import { appendAuditEntry } from './audit'
 import { searchRag } from './rag'
@@ -670,6 +670,35 @@ export default function registerAI(): void {
       return { success: true, text: (data?.text ?? '').trim() }
     } catch (err: unknown) {
       log.error('ai:transcribe failed', err)
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
+  ipcMain.handle('ai:speak-elevenlabs', async (_e, text: string, voiceId?: string) => {
+    const key = getElevenLabsApiKey()
+    if (!key) return { success: false, error: 'No ElevenLabs API key set.' }
+    const vId = voiceId || getElevenLabsVoiceId()
+    try {
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${vId}`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': key,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text,
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+        })
+      })
+      if (!res.ok) {
+        const txt = await res.text()
+        return { success: false, error: `ElevenLabs ${res.status}: ${txt}` }
+      }
+      const buffer = await res.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      return { success: true, audioBase64: base64 }
+    } catch (err: unknown) {
       return { success: false, error: (err as Error).message }
     }
   })

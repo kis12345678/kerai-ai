@@ -5,7 +5,15 @@ import fs from 'fs'
 
 const configPath = join(app.getPath('userData'), 'kerai_config.json')
 
-type Config = { apiKey?: string; model?: string; provider?: string; ollamaModel?: string; voice?: string }
+type Config = {
+  apiKey?: string
+  model?: string
+  provider?: string
+  ollamaModel?: string
+  voice?: string
+  elevenLabsApiKey?: string
+  elevenLabsVoiceId?: string
+}
 
 function readRaw(): Record<string, string> {
   if (!fs.existsSync(configPath)) return {}
@@ -40,6 +48,20 @@ export function getApiKey(): string | null {
   }
 }
 
+export function getElevenLabsApiKey(): string | null {
+  const raw = readRaw()
+  if (!raw.elevenLabsApiKey) return null
+  try {
+    return decrypt(raw.elevenLabsApiKey)
+  } catch {
+    return null
+  }
+}
+
+export function getElevenLabsVoiceId(): string {
+  return readRaw().elevenLabsVoiceId || '21m00Tcm4TlvDq8ikWAM' // Rachel (Female) by default
+}
+
 export function getModel(): string {
   return readRaw().model || 'llama-3.3-70b-versatile'
 }
@@ -65,7 +87,9 @@ export default function registerSettings(): void {
     model: getModel(),
     provider: getProvider(),
     ollamaModel: getOllamaModel(),
-    voice: getVoice()
+    voice: getVoice(),
+    hasElevenKey: !!readRaw().elevenLabsApiKey,
+    elevenVoiceId: getElevenLabsVoiceId()
   }))
 
   ipcMain.handle('settings:save', (_e, cfg: Config) => {
@@ -76,6 +100,8 @@ export default function registerSettings(): void {
       if (cfg.provider) raw.provider = cfg.provider
       if (cfg.ollamaModel) raw.ollamaModel = cfg.ollamaModel
       if (cfg.voice !== undefined) raw.voice = cfg.voice
+      if (cfg.elevenLabsApiKey) raw.elevenLabsApiKey = encrypt(cfg.elevenLabsApiKey)
+      if (cfg.elevenLabsVoiceId !== undefined) raw.elevenLabsVoiceId = cfg.elevenLabsVoiceId
       fs.writeFileSync(configPath, JSON.stringify(raw))
       return { success: true }
     } catch (err: unknown) {
