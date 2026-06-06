@@ -51,7 +51,7 @@ vi.mock('../logger', () => ({
   }
 }))
 
-import registerSettings, { getApiKey, getModel, getProvider, getOllamaModel } from '../settings'
+import registerSettings, { getApiKey, getModel, getVoice, getElevenLabsApiKey, getElevenLabsVoiceId } from '../settings'
 
 function getHandler(name: string): Function {
   const handler = mockHandlers.get(name)
@@ -71,52 +71,50 @@ describe('settings handler', () => {
     const status = await statusHandler()
     expect(status).toEqual({
       hasKey: false,
-      model: 'llama-3.3-70b-versatile',
-      provider: 'groq',
-      ollamaModel: 'llama3.1:8b',
-      voice: '',
+      model: 'gemini-2.0-flash',
+      voice: 'google-natural-female',
       hasElevenKey: false,
       elevenVoiceId: '21m00Tcm4TlvDq8ikWAM'
     })
   })
 
-  it('should save settings and support getModel/getProvider/getApiKey', async () => {
+  it('should save settings and support getModel/getVoice/getApiKey', async () => {
     const saveHandler = getHandler('settings:save')
     const saveRes = await saveHandler(null, {
       apiKey: 'test-api-key',
-      model: 'gemma2-9b-it',
-      provider: 'ollama',
-      ollamaModel: 'mistral:7b'
+      model: 'gemini-1.5-pro',
+      voice: 'custom-voice',
+      elevenLabsApiKey: 'eleven-key',
+      elevenLabsVoiceId: 'eleven-voice'
     })
     expect(saveRes.success).toBe(true)
 
-    expect(getModel()).toBe('gemma2-9b-it')
-    expect(getProvider()).toBe('ollama')
-    expect(getOllamaModel()).toBe('mistral:7b')
+    expect(getModel()).toBe('gemini-1.5-pro')
+    expect(getVoice()).toBe('custom-voice')
     expect(getApiKey()).toBe('test-api-key')
+    expect(getElevenLabsApiKey()).toBe('eleven-key')
+    expect(getElevenLabsVoiceId()).toBe('eleven-voice')
 
     const statusHandler = getHandler('settings:status')
     const status = await statusHandler()
     expect(status).toEqual({
       hasKey: true,
-      model: 'gemma2-9b-it',
-      provider: 'ollama',
-      ollamaModel: 'mistral:7b',
-      voice: '',
-      hasElevenKey: false,
-      elevenVoiceId: '21m00Tcm4TlvDq8ikWAM'
+      model: 'gemini-1.5-pro',
+      voice: 'custom-voice',
+      hasElevenKey: true,
+      elevenVoiceId: 'eleven-voice'
     })
   })
 
   it('should handle clearing settings', async () => {
     const saveHandler = getHandler('settings:save')
-    await saveHandler(null, { model: 'gemma2-9b-it' })
-    expect(getModel()).toBe('gemma2-9b-it')
+    await saveHandler(null, { model: 'gemini-1.5-pro' })
+    expect(getModel()).toBe('gemini-1.5-pro')
 
     const clearHandler = getHandler('settings:clear')
     const clearRes = await clearHandler()
     expect(clearRes.success).toBe(true)
-    expect(getModel()).toBe('llama-3.3-70b-versatile')
+    expect(getModel()).toBe('gemini-2.0-flash')
   })
 
   it('should fail to save if encryption is unavailable', async () => {

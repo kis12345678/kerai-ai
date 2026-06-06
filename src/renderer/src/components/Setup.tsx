@@ -20,15 +20,15 @@ export default function Setup({ onDone }: { onDone: () => void }): JSX.Element {
       <div className="setup-card">
         <div className="big">KERAI</div>
         <p>
-          Paste a free Groq or Gemini API key to bring KERAI online. The key is encrypted by your OS and
+          Paste a Google Gemini API key to bring KERAI online. The key is encrypted by your OS and
           stays on this machine — it is never exposed to the interface.
         </p>
         {err && <div className="err">{err}</div>}
-        <label>API KEY</label>
+        <label>GEMINI API KEY</label>
         <input
           type="password"
           value={key}
-          placeholder="gsk_... or AIzaSy..."
+          placeholder="AIzaSy..."
           onChange={(e) => setKey(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()}
         />
@@ -36,7 +36,7 @@ export default function Setup({ onDone }: { onDone: () => void }): JSX.Element {
           {busy ? 'LINKING…' : 'INITIALISE'}
         </button>
         <p style={{ marginTop: 18, marginBottom: 0 }}>
-          Get one free at <a>console.groq.com/keys</a> or <a>aistudio.google.com</a>
+          Get one free at <a>aistudio.google.com</a>
         </p>
       </div>
     </div>

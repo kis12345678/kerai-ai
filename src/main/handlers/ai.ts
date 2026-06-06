@@ -1,13 +1,9 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain } from 'electron'
 import { log } from '../logger'
-import { getApiKey, getModel, getProvider, getOllamaModel, getElevenLabsApiKey, getElevenLabsVoiceId } from './settings'
+import { getApiKey, getModel, getElevenLabsApiKey, getElevenLabsVoiceId } from './settings'
 import { executeTool, describeAction, TOOL_SCHEMAS } from './tools'
 import { appendAuditEntry } from './audit'
 import { searchRag } from './rag'
-
-const CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const STT_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
-const OLLAMA_URL = 'http://localhost:11434/api/chat'
 
 type Msg = { role: 'system' | 'user' | 'assistant'; content: string }
 
@@ -21,8 +17,6 @@ const AGENT_SYSTEM_PROMPT =
   'After a tool runs, give a short confirmation or answer based on its result. ' +
   'For pure conversation, reply briefly and naturally as if spoken aloud.'
 
-// ── Streaming helper ─────────────────────────────────────────────────────────
-
 type ToolCallAcc = { id: string; type: string; function: { name: string; arguments: string } }
 
 type AgentMsg =
@@ -32,169 +26,9 @@ type AgentMsg =
 
 type ToolCallSpec = { id: string; type: string; function: { name: string; arguments: string } }
 
-// Single LLM streaming call. Streams text chunks to `sendFn` and returns
+// Single Gemini LLM streaming call. Streams text chunks to `sendFn` and returns
 // accumulated text + any tool calls when the response completes.
 async function streamOne(
-  sendFn: (channel: string, data: unknown) => void,
-  messages: AgentMsg[],
-  key: string
-): Promise<{ textContent: string; toolCalls: ToolCallAcc[]; error?: string }> {
-  let res: Response
-  try {
-    res = await fetch(CHAT_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: getModel(),
-        messages,
-        tools: TOOL_SCHEMAS,
-        tool_choice: 'auto',
-        temperature: 0.6,
-        max_tokens: 1200,
-        stream: true
-      })
-    })
-  } catch (err: unknown) {
-    return { textContent: '', toolCalls: [], error: (err as Error).message }
-  }
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    return { textContent: '', toolCalls: [], error: `Groq ${res.status}: ${text.slice(0, 200)}` }
-  }
-  if (!res.body) {
-    return { textContent: '', toolCalls: [], error: 'No response body.' }
-  }
-
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let textContent = ''
-  const toolCallAccs = new Map<number, ToolCallAcc>()
-  let finishReason: string | null = null
-
-  outer: while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const raw = line.slice(6).trim()
-      if (raw === '[DONE]') break outer
-
-      try {
-        const parsed = JSON.parse(raw)
-        const choice = parsed?.choices?.[0]
-        if (!choice) continue
-        if (choice.finish_reason) finishReason = choice.finish_reason
-
-        const delta = choice.delta ?? {}
-
-        if (typeof delta.content === 'string' && delta.content) {
-          textContent += delta.content
-          sendFn('ai:stream-chunk', { token: delta.content })
-        }
-
-        if (Array.isArray(delta.tool_calls)) {
-          for (const tc of delta.tool_calls) {
-            if (typeof tc.index !== 'number') continue
-            const acc = toolCallAccs.get(tc.index) ?? {
-              id: '',
-              type: 'function',
-              function: { name: '', arguments: '' }
-            }
-            if (tc.id) acc.id = tc.id
-            if (tc.type) acc.type = tc.type
-            if (tc.function?.name) acc.function.name += tc.function.name
-            if (tc.function?.arguments) acc.function.arguments += tc.function.arguments
-            toolCallAccs.set(tc.index, acc)
-          }
-        }
-      } catch (err) {
-        log.error('ai: malformed SSE chunk', err)
-      }
-    }
-  }
-
-  const toolCalls = finishReason === 'tool_calls' ? [...toolCallAccs.values()] : []
-  return { textContent, toolCalls }
-}
-
-// Ollama streaming helper — handles NDJSON format instead of SSE.
-async function streamOneOllama(
-  sendFn: (channel: string, data: unknown) => void,
-  messages: AgentMsg[]
-): Promise<{ textContent: string; toolCalls: ToolCallAcc[]; error?: string }> {
-  const ollamaMessages = messages.map((m) => {
-    if (m.role === 'tool') return { role: 'user' as const, content: `[Tool result] ${m.content}` }
-    if ('tool_calls' in m && m.tool_calls) {
-      return { role: 'assistant' as const, content: m.content ?? '' }
-    }
-    return { role: m.role, content: m.content ?? '' }
-  })
-
-  let res: Response
-  try {
-    res = await fetch(OLLAMA_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: getOllamaModel(),
-        messages: ollamaMessages,
-        stream: true
-      })
-    })
-  } catch (err: unknown) {
-    return { textContent: '', toolCalls: [], error: `Ollama connection failed: ${(err as Error).message}. Is Ollama running?` }
-  }
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    return { textContent: '', toolCalls: [], error: `Ollama ${res.status}: ${text.slice(0, 200)}` }
-  }
-  if (!res.body) {
-    return { textContent: '', toolCalls: [], error: 'No response body from Ollama.' }
-  }
-
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let textContent = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      try {
-        const parsed = JSON.parse(trimmed)
-        const token: string = parsed?.message?.content ?? ''
-        if (token) {
-          textContent += token
-          sendFn('ai:stream-chunk', { token })
-        }
-      } catch {
-        // Malformed NDJSON line — skip.
-      }
-    }
-  }
-
-  // Ollama doesn't support tool calling in this integration, so always return empty toolCalls
-  return { textContent, toolCalls: [] }
-}
-
-// Gemini streaming helper — handles SSE format.
-async function streamOneGemini(
   sendFn: (channel: string, data: unknown) => void,
   messages: AgentMsg[],
   key: string
@@ -325,243 +159,74 @@ async function streamOneGemini(
 export default function registerAI(): void {
   // Text in -> assistant reply out. History is passed from the renderer.
   ipcMain.handle('ai:chat', async (_e, history: Msg[]) => {
-    const provider = getProvider()
-
-    if (provider === 'ollama') {
-      try {
-        const ollamaMessages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history].map((m) => ({
-          role: m.role,
-          content: m.content
-        }))
-        const res = await fetch(OLLAMA_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: getOllamaModel(), messages: ollamaMessages, stream: false })
-        })
-        if (!res.ok) {
-          const text = await res.text()
-          return { success: false, error: `Ollama ${res.status}: ${text.slice(0, 200)}` }
-        }
-        const data = await res.json()
-        return { success: true, reply: data?.message?.content ?? '' }
-      } catch (err: unknown) {
-        return { success: false, error: `Ollama connection failed: ${(err as Error).message}. Is Ollama running?` }
-      }
-    }
-
-    if (provider === 'gemini') {
-      const key = getApiKey()
-      if (!key) return { success: false, error: 'No API key set.' }
-      try {
-        const contents = [{ role: 'system', content: SYSTEM_PROMPT }, ...history].map((m) => {
-          return {
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }]
-          }
-        })
-        const systemMsg = history.find(m => m.role === 'system')
-        const systemInstruction = systemMsg ? { parts: [{ text: systemMsg.content }] } : { parts: [{ text: SYSTEM_PROMPT }] }
-        const userContents = contents.filter(c => c.role !== 'system')
-
-        const geminiModel = getModel().startsWith('gemini') ? getModel() : 'gemini-2.0-flash'
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: userContents,
-            systemInstruction,
-            generationConfig: { temperature: 0.6 }
-          })
-        })
-        if (!res.ok) {
-          const text = await res.text()
-          return { success: false, error: `Gemini ${res.status}: ${text.slice(0, 200)}` }
-        }
-        const data = await res.json()
-        const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-        return { success: true, reply }
-      } catch (err: unknown) {
-        return { success: false, error: `Gemini connection failed: ${(err as Error).message}` }
-      }
-    }
-
     const key = getApiKey()
     if (!key) return { success: false, error: 'No API key set.' }
-
     try {
-      const res = await fetch(CHAT_URL, {
+      const contents = history.map((m) => {
+        return {
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }
+      })
+      const systemMsg = history.find(m => m.role === 'system')
+      const systemInstruction = systemMsg ? { parts: [{ text: systemMsg.content }] } : { parts: [{ text: SYSTEM_PROMPT }] }
+      const userContents = contents.filter(c => c.role !== 'system')
+
+      const geminiModel = getModel().startsWith('gemini') ? getModel() : 'gemini-2.0-flash'
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: getModel(),
-          messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history],
-          temperature: 0.6,
-          max_tokens: 800
+          contents: userContents,
+          systemInstruction,
+          generationConfig: { temperature: 0.6 }
         })
       })
-
       if (!res.ok) {
         const text = await res.text()
-        return { success: false, error: `Groq ${res.status}: ${text.slice(0, 200)}` }
+        return { success: false, error: `Gemini ${res.status}: ${text.slice(0, 200)}` }
       }
-
       const data = await res.json()
-      const reply: string = data?.choices?.[0]?.message?.content ?? ''
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
       return { success: true, reply }
     } catch (err: unknown) {
       log.error('ai:chat failed', err)
-      return { success: false, error: (err as Error).message }
+      return { success: false, error: `Gemini connection failed: ${(err as Error).message}` }
     }
   })
 
   // Streaming chat: pushes ai:stream-chunk events then ai:stream-end (or ai:stream-error).
   ipcMain.handle('ai:chat-stream', async (event, history: Msg[]) => {
-    const provider = getProvider()
-
-    if (provider === 'ollama') {
-      const send = (ch: string, data: unknown): void => {
-        if (!event.sender.isDestroyed()) event.sender.send(ch, data)
-      }
-      const ollamaMessages = [{ role: 'system' as const, content: SYSTEM_PROMPT }, ...history].map((m) => ({
-        role: m.role as 'system' | 'user' | 'assistant', content: m.content
-      }))
-      const { textContent, error } = await streamOneOllama(send, ollamaMessages)
-      if (error) {
-        send('ai:stream-error', { error })
-        return { success: false }
-      }
-      send('ai:stream-end', { reply: textContent })
-      return { success: true }
-    }
-
-    if (provider === 'gemini') {
-      const key = getApiKey()
-      if (!key) {
-        event.sender.send('ai:stream-error', { error: 'No API key set.' })
-        return { success: false }
-      }
-      const send = (ch: string, data: unknown): void => {
-        if (!event.sender.isDestroyed()) event.sender.send(ch, data)
-      }
-      const geminiMessages: AgentMsg[] = [{ role: 'system' as const, content: SYSTEM_PROMPT }, ...history]
-      const { textContent, error } = await streamOneGemini(send, geminiMessages, key)
-      if (error) {
-        send('ai:stream-error', { error })
-        return { success: false }
-      }
-      send('ai:stream-end', { reply: textContent })
-      return { success: true }
-    }
-
     const key = getApiKey()
     if (!key) {
       event.sender.send('ai:stream-error', { error: 'No API key set.' })
       return { success: false }
     }
-
-    try {
-      const res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: getModel(),
-          messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history],
-          temperature: 0.6,
-          max_tokens: 800,
-          stream: true
-        })
-      })
-
-      if (!res.ok) {
-        const text = await res.text()
-        event.sender.send('ai:stream-error', {
-          error: `Groq ${res.status}: ${text.slice(0, 200)}`
-        })
-        return { success: false }
-      }
-
-      if (!res.body) {
-        event.sender.send('ai:stream-error', { error: 'No response body from Groq.' })
-        return { success: false }
-      }
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let fullReply = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        // Keep the last (potentially incomplete) line in the buffer.
-        buffer = lines.pop() ?? ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') continue
-
-          try {
-            const parsed = JSON.parse(data)
-            const token: string = parsed?.choices?.[0]?.delta?.content ?? ''
-            if (token) {
-              fullReply += token
-              event.sender.send('ai:stream-chunk', { token })
-            }
-          } catch (err) {
-            log.error('ai: malformed SSE chunk', err)
-          }
-        }
-      }
-
-      event.sender.send('ai:stream-end', { reply: fullReply })
-      return { success: true }
-    } catch (err: unknown) {
-      log.error('ai:chat-stream failed', err)
-      event.sender.send('ai:stream-error', { error: (err as Error).message })
+    const send = (ch: string, data: unknown): void => {
+      if (!event.sender.isDestroyed()) event.sender.send(ch, data)
+    }
+    const geminiMessages: AgentMsg[] = [{ role: 'system' as const, content: SYSTEM_PROMPT }, ...history]
+    const { textContent, error } = await streamOne(send, geminiMessages, key)
+    if (error) {
+      send('ai:stream-error', { error })
       return { success: false }
     }
+    send('ai:stream-end', { reply: textContent })
+    return { success: true }
   })
 
   // Agentic chat with tool-calling loop.
   // Streams text via ai:stream-chunk/end/error; announces tool use via
   // ai:tool-call and ai:tool-result. All executed tools are audit-logged.
   ipcMain.handle('ai:agent-chat', async (event, history: Msg[]) => {
-    const provider = getProvider()
-    const send = (ch: string, data: unknown): void => {
-      if (!event.sender.isDestroyed()) event.sender.send(ch, data)
-    }
-
-    if (provider === 'ollama') {
-      const lastUserMsg = [...history].reverse().find((m) => m.role === 'user')?.content ?? ''
-      const ragContext = searchRag(lastUserMsg, 3)
-      const systemContent = ragContext
-        ? `${AGENT_SYSTEM_PROMPT}\n\nRelevant context from the user's local documents:\n\n${ragContext}\n\nCite the document name when using this context.`
-        : AGENT_SYSTEM_PROMPT
-      const ollamaMessages: AgentMsg[] = [{ role: 'system', content: systemContent }, ...history]
-      const { textContent, error } = await streamOneOllama(send, ollamaMessages)
-      if (error) {
-        send('ai:stream-error', { error })
-        return { success: false }
-      }
-      send('ai:stream-end', { reply: textContent })
-      return { success: true }
-    }
-
-    const isGemini = provider === 'gemini'
     const key = getApiKey()
     if (!key) {
       event.sender.send('ai:stream-error', { error: 'No API key set.' })
       return { success: false }
+    }
+
+    const send = (ch: string, data: unknown): void => {
+      if (!event.sender.isDestroyed()) event.sender.send(ch, data)
     }
 
     const lastUserMsg = [...history].reverse().find((m) => m.role === 'user')?.content ?? ''
@@ -578,9 +243,7 @@ export default function registerAI(): void {
     const MAX_ITERATIONS = 10
 
     for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-      const { textContent, toolCalls, error } = isGemini
-        ? await streamOneGemini(send, agentMessages, key)
-        : await streamOne(send, agentMessages, key)
+      const { textContent, toolCalls, error } = await streamOne(send, agentMessages, key)
 
       if (error) {
         send('ai:stream-error', { error })
@@ -645,29 +308,44 @@ export default function registerAI(): void {
     return { success: false }
   })
 
-  // STT always uses Groq Whisper — no Ollama equivalent.
+  // STT always uses Gemini now
   ipcMain.handle('ai:transcribe', async (_e, buffer: ArrayBuffer) => {
     const key = getApiKey()
-    if (!key) return { success: false, error: 'Voice transcription requires a Groq API key, even when using Ollama for chat.' }
+    if (!key) return { success: false, error: 'Voice transcription requires a Gemini API key.' }
 
     try {
-      const form = new FormData()
-      form.append('file', new Blob([buffer], { type: 'audio/webm' }), 'speech.webm')
-      form.append('model', 'whisper-large-v3-turbo')
-
-      const res = await fetch(STT_URL, {
+      const base64 = Buffer.from(buffer).toString('base64')
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`
+      const res = await fetch(url, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${key}` },
-        body: form
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'audio/webm',
+                    data: base64
+                  }
+                },
+                {
+                  text: 'Please transcribe this audio recording. Output only the transcription, without any preamble or conversational text.'
+                }
+              ]
+            }
+          ]
+        })
       })
 
       if (!res.ok) {
         const text = await res.text()
-        return { success: false, error: `Groq STT ${res.status}: ${text.slice(0, 200)}` }
+        return { success: false, error: `Gemini STT ${res.status}: ${text.slice(0, 200)}` }
       }
 
       const data = await res.json()
-      return { success: true, text: (data?.text ?? '').trim() }
+      const reply = (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+      return { success: true, text: reply }
     } catch (err: unknown) {
       log.error('ai:transcribe failed', err)
       return { success: false, error: (err as Error).message }
