@@ -67,8 +67,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  log.info('IRIS starting\u2026')
-  electronApp.setAppUserModelId('com.iris.assistant')
+  log.info('KERAI starting\u2026')
+  electronApp.setAppUserModelId('com.kerai.assistant')
 
   // Automatically grant all permissions (microphone, media, and notification access).
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {

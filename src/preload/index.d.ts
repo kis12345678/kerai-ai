@@ -1,7 +1,7 @@
-import type { IrisApi } from './index'
+import type { KeraiApi } from './index'
 
 declare global {
   interface Window {
-    iris: IrisApi
+    kerai: KeraiApi
   }
 }

@@ -120,6 +120,6 @@ describe('system handler', () => {
     const screenshotHandler = getHandler('system:screenshot')
     const res = await screenshotHandler()
     expect(res.success).toBe(true)
-    expect(res.path).toContain('iris-')
+    expect(res.path).toContain('kerai-')
   })
 })

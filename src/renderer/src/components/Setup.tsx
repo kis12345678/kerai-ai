@@ -9,7 +9,7 @@ export default function Setup({ onDone }: { onDone: () => void }): JSX.Element {
     if (!key.trim()) return
     setBusy(true)
     setErr('')
-    const res = await window.iris.settings.save({ apiKey: key.trim() })
+    const res = await window.kerai.settings.save({ apiKey: key.trim() })
     setBusy(false)
     if (res.success) onDone()
     else setErr(res.error || 'Could not save key.')
@@ -18,9 +18,9 @@ export default function Setup({ onDone }: { onDone: () => void }): JSX.Element {
   return (
     <div className="setup">
       <div className="setup-card">
-        <div className="big">IRIS</div>
+        <div className="big">KERAI</div>
         <p>
-          Paste a free Groq API key to bring IRIS online. The key is encrypted by your OS and
+          Paste a free Groq API key to bring KERAI online. The key is encrypted by your OS and
           stays on this machine — it is never exposed to the interface.
         </p>
         {err && <div className="err">{err}</div>}

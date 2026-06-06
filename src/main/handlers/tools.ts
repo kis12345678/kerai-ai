@@ -242,9 +242,9 @@ export async function toolSetVolume(level: number): Promise<ToolResult> {
   const vol = Math.max(0, Math.min(100, Math.round(level)))
   // Use winmm.dll via Add-Type. Each PS process starts fresh — no type conflict.
   const script = [
-    `Add-Type -MemberDefinition '[DllImport("winmm.dll")] public static extern int waveOutSetVolume(IntPtr h, uint v);' -Name "WV" -Namespace "IRIS"`,
+    `Add-Type -MemberDefinition '[DllImport("winmm.dll")] public static extern int waveOutSetVolume(IntPtr h, uint v);' -Name "WV" -Namespace "KERAI"`,
     `$v = [uint32]([uint32]::MaxValue * (${vol} / 100.0))`,
-    `[IRIS.WV]::waveOutSetVolume([System.IntPtr]::Zero, $v -bor ($v -shl 16))`
+    `[KERAI.WV]::waveOutSetVolume([System.IntPtr]::Zero, $v -bor ($v -shl 16))`
   ].join('; ')
   try {
     await execFileAsync(

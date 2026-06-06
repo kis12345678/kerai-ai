@@ -12,7 +12,7 @@ interface HistoryMsg {
   approved?: boolean
 }
 
-const historyPath = (): string => join(app.getPath('userData'), 'iris_history.json')
+const historyPath = (): string => join(app.getPath('userData'), 'kerai_history.json')
 
 export default function registerHistory(): void {
   ipcMain.handle('history:load', async () => {

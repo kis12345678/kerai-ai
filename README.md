@@ -1,8 +1,8 @@
-# IRIS — Secure Voice-First Desktop Assistant
+# KERAI — Secure Voice-First Desktop Assistant
 
 A working AI assistant you own. Text + voice chat powered by Groq, built on a
 locked-down Electron architecture (the corrected version of the patterns in the
-`201Harsh/IRIS-AI` reference demo).
+`201Harsh/KERAI-AI` reference demo).
 
 ## What works right now
 - 💬 Text chat with a fast LLM (Groq)

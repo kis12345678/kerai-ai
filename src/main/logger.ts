@@ -7,7 +7,7 @@ const MAX_LOG_BYTES = 1024 * 1024 // 1 MB
 let logPath: string | null = null
 
 function getLogPath(): string {
-  if (!logPath) logPath = join(app.getPath('userData'), 'iris.log')
+  if (!logPath) logPath = join(app.getPath('userData'), 'kerai.log')
   return logPath
 }
 

@@ -14,7 +14,7 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    window.iris.settings.status().then((s) => {
+    window.kerai.settings.status().then((s) => {
       setProvider(s.provider ?? 'groq')
       setModel(s.model ?? 'llama-3.3-70b-versatile')
       setOllamaModel(s.ollamaModel ?? 'llama3.1:8b')
@@ -38,7 +38,7 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
     setStatus('')
     const cfg: Record<string, string> = { provider, model, ollamaModel, voice: selectedVoice }
     if (apiKey.trim()) cfg.apiKey = apiKey.trim()
-    const res = await window.iris.settings.save(cfg)
+    const res = await window.kerai.settings.save(cfg)
     setSaving(false)
     if (res.success) {
       setStatus('Saved.')
@@ -50,7 +50,7 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
   }
 
   const clearKey = async (): Promise<void> => {
-    await window.iris.settings.clear()
+    await window.kerai.settings.clear()
     setHasKey(false)
     setStatus('API key cleared.')
   }

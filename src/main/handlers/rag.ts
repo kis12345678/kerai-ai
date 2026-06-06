@@ -172,7 +172,7 @@ export default function registerRAG(): void {
 
   ipcMain.handle('rag:add', async () => {
     const { filePaths, canceled } = await dialog.showOpenDialog({
-      title: 'Add documents to IRIS knowledge base',
+      title: 'Add documents to KERAI knowledge base',
       properties: ['openFile', 'multiSelections'],
       filters: [
         { name: 'Text files', extensions: ['txt', 'md', 'markdown', 'csv', 'log', 'json'] },

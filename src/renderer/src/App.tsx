@@ -9,9 +9,9 @@ function Titlebar({ onSettings }: { onSettings: () => void }): JSX.Element {
       <div className="brand">◈ I R I S</div>
       <div className="win-btns">
         <button onClick={onSettings} title="Settings">⚙</button>
-        <button onClick={() => window.iris.window.minimize()}>—</button>
-        <button onClick={() => window.iris.window.toggleMaximize()}>▢</button>
-        <button onClick={() => window.iris.window.close()}>✕</button>
+        <button onClick={() => window.kerai.window.minimize()}>—</button>
+        <button onClick={() => window.kerai.window.toggleMaximize()}>▢</button>
+        <button onClick={() => window.kerai.window.close()}>✕</button>
       </div>
     </div>
   )
@@ -25,7 +25,7 @@ export default function App(): JSX.Element {
   const [windowState, setWindowState] = useState<'normal' | 'widget'>('normal')
 
   const refresh = async (): Promise<void> => {
-    const status = await window.iris.settings.status()
+    const status = await window.kerai.settings.status()
     setHasKey(status.hasKey)
     setProvider(status.provider ?? 'groq')
     setReady(true)
@@ -33,7 +33,7 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     refresh()
-    const unsub = window.iris.window.onStateChanged((data) => {
+    const unsub = window.kerai.window.onStateChanged((data) => {
       setWindowState(data.state)
     })
     return () => unsub()
@@ -42,7 +42,7 @@ export default function App(): JSX.Element {
   return (
     <div className={windowState === 'widget' ? 'widget-active' : 'app-container'} style={{ height: '100%' }}>
       {windowState === 'widget' && (
-        <div className="widget-click-zone" onClick={() => window.iris.window.restore()} title="Click to open IRIS">
+        <div className="widget-click-zone" onClick={() => window.kerai.window.restore()} title="Click to open KERAI">
           <div className="orb-3d">
             <div className="siri-orb"></div>
             <div className="orb-ring r1"></div>
@@ -58,7 +58,7 @@ export default function App(): JSX.Element {
           {!ready ? (
             <div className="setup">
               <div className="setup-card">
-                <div className="big">IRIS</div>
+                <div className="big">KERAI</div>
                 <p>booting…</p>
               </div>
             </div>
