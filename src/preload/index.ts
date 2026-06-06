@@ -32,6 +32,7 @@ const kerai = {
       return () => ipcRenderer.off('ai:stream-error', handler)
     },
     agentChat: (history: Msg[]) => ipcRenderer.invoke('ai:agent-chat', history),
+    speakElevenLabs: (text: string, voiceId?: string) => ipcRenderer.invoke('ai:speak-elevenlabs', text, voiceId),
     onToolCall: (
       cb: (data: { id: string; name: string; args: Record<string, unknown>; description: string }) => void
     ): (() => void) => {

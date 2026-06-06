@@ -12,6 +12,9 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
   const [selectedVoice, setSelectedVoice] = useState('')
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
+  const [elevenKey, setElevenKey] = useState('')
+  const [hasElevenKey, setHasElevenKey] = useState(false)
+  const [elevenVoiceId, setElevenVoiceId] = useState('')
 
   useEffect(() => {
     window.kerai.settings.status().then((s) => {
@@ -20,6 +23,8 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
       setOllamaModel(s.ollamaModel ?? 'llama3.1:8b')
       setHasKey(s.hasKey)
       setSelectedVoice(s.voice ?? 'google-natural-female')
+      setHasElevenKey((s as any).hasElevenKey)
+      setElevenVoiceId((s as any).elevenVoiceId ?? '21m00Tcm4TlvDq8ikWAM')
     })
   }, [])
 
@@ -36,14 +41,17 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
   const save = async (): Promise<void> => {
     setSaving(true)
     setStatus('')
-    const cfg: Record<string, string> = { provider, model, ollamaModel, voice: selectedVoice }
+    const cfg: Record<string, string> = { provider, model, ollamaModel, voice: selectedVoice, elevenLabsVoiceId: elevenVoiceId }
     if (apiKey.trim()) cfg.apiKey = apiKey.trim()
+    if (elevenKey.trim()) cfg.elevenLabsApiKey = elevenKey.trim()
     const res = await window.kerai.settings.save(cfg)
     setSaving(false)
     if (res.success) {
       setStatus('Saved.')
       setHasKey(!!apiKey.trim() || hasKey)
+      setHasElevenKey(!!elevenKey.trim() || hasElevenKey)
       setApiKey('')
+      setElevenKey('')
     } else {
       setStatus(res.error || 'Failed to save.')
     }
@@ -176,6 +184,9 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
             >
               <option value="google-natural-female">★ Google Natural Female</option>
               <option value="google-natural-male">★ Google Natural Male</option>
+              <option value="eleven-female">★ ElevenLabs Female (Rachel)</option>
+              <option value="eleven-male">★ ElevenLabs Male (Adam)</option>
+              <option value="eleven-custom">★ ElevenLabs Custom Voice ID</option>
               <option value="browser-female">Browser Native Female</option>
               <option value="browser-male">Browser Native Male</option>
               <option value="">System default</option>
@@ -187,6 +198,33 @@ export default function Settings({ onBack }: { onBack: () => void }): JSX.Elemen
             </select>
           </div>
         )}
+
+        <div className="settings-section">
+          <label className="settings-label">ELEVENLABS API KEY</label>
+          <div className="settings-hint" style={{ marginBottom: 6 }}>
+            {hasElevenKey ? '● ElevenLabs key stored' : '○ No ElevenLabs key set'} — required for ElevenLabs voices
+          </div>
+          <input
+            className="settings-input"
+            type="password"
+            value={elevenKey}
+            placeholder={hasElevenKey ? '••••••••' : 'xi-apiKey...'}
+            onChange={(e) => setElevenKey(e.target.value)}
+          />
+        </div>
+
+        <div className="settings-section">
+          <label className="settings-label">ELEVENLABS CUSTOM VOICE ID</label>
+          <input
+            className="settings-input"
+            value={elevenVoiceId}
+            placeholder="21m00Tcm4TlvDq8ikWAM"
+            onChange={(e) => setElevenVoiceId(e.target.value)}
+          />
+          <div className="settings-hint">
+            Specify a custom voice ID from ElevenLabs dashboard (e.g. Rachel, Adam, or your cloned voices)
+          </div>
+        </div>
 
         <div className="settings-section">
           <label className="settings-label">PUSH-TO-TALK HOTKEY</label>
