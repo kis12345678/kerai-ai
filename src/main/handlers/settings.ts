@@ -8,8 +8,6 @@ const configPath = join(app.getPath('userData'), 'kerai_config.json')
 type Config = {
   apiKey?: string
   model?: string
-  provider?: string
-  ollamaModel?: string
   voice?: string
   elevenLabsApiKey?: string
   elevenLabsVoiceId?: string
@@ -63,30 +61,17 @@ export function getElevenLabsVoiceId(): string {
 }
 
 export function getModel(): string {
-  return readRaw().model || 'llama-3.3-70b-versatile'
-}
-
-export function getProvider(): 'groq' | 'gemini' | 'ollama' {
-  const p = readRaw().provider
-  if (p === 'ollama') return 'ollama'
-  if (p === 'gemini') return 'gemini'
-  return 'groq'
-}
-
-export function getOllamaModel(): string {
-  return readRaw().ollamaModel || 'llama3.1:8b'
+  return readRaw().model || 'gemini-2.0-flash'
 }
 
 export function getVoice(): string {
-  return readRaw().voice || ''
+  return readRaw().voice || 'google-natural-female'
 }
 
 export default function registerSettings(): void {
   ipcMain.handle('settings:status', () => ({
     hasKey: !!readRaw().apiKey,
     model: getModel(),
-    provider: getProvider(),
-    ollamaModel: getOllamaModel(),
     voice: getVoice(),
     hasElevenKey: !!readRaw().elevenLabsApiKey,
     elevenVoiceId: getElevenLabsVoiceId()
@@ -97,8 +82,6 @@ export default function registerSettings(): void {
       const raw = readRaw()
       if (cfg.apiKey) raw.apiKey = encrypt(cfg.apiKey)
       if (cfg.model) raw.model = cfg.model
-      if (cfg.provider) raw.provider = cfg.provider
-      if (cfg.ollamaModel) raw.ollamaModel = cfg.ollamaModel
       if (cfg.voice !== undefined) raw.voice = cfg.voice
       if (cfg.elevenLabsApiKey) raw.elevenLabsApiKey = encrypt(cfg.elevenLabsApiKey)
       if (cfg.elevenLabsVoiceId !== undefined) raw.elevenLabsVoiceId = cfg.elevenLabsVoiceId

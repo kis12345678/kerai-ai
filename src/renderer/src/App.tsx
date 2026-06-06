@@ -21,13 +21,11 @@ export default function App(): JSX.Element {
   const [ready, setReady] = useState(false)
   const [hasKey, setHasKey] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [provider, setProvider] = useState<string>('groq')
   const [windowState, setWindowState] = useState<'normal' | 'widget'>('normal')
 
   const refresh = async (): Promise<void> => {
     const status = await window.kerai.settings.status()
     setHasKey(status.hasKey)
-    setProvider(status.provider ?? 'groq')
     setReady(true)
   }
 
@@ -64,7 +62,7 @@ export default function App(): JSX.Element {
             </div>
           ) : showSettings ? (
             <Settings onBack={() => { setShowSettings(false); refresh() }} />
-          ) : hasKey || provider === 'ollama' ? (
+          ) : hasKey ? (
             <Console onReset={refresh} />
           ) : (
             <Setup onDone={refresh} />
